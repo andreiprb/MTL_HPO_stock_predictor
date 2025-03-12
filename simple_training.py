@@ -3,7 +3,7 @@ import tensorflow as tf
 import os
 
 from tuning import tune_hyperparameters, train_best_model
-from utility import plot_results, prepare_stock_data, plot_confusion_matrix
+from utility import plot_results, prepare_stock_data, calculate_additional_metrics, print_metrics_report
 from constants import RANDOM_SEED, LOOK_BACK, EPOCHS, TUNING_MAX_TRIALS, TUNING_EXECUTIONS_PER_TRIAL, TICKERS, DEFAULT_TICKER
 
 
@@ -63,6 +63,8 @@ def run_model(ticker, verbose=True, save_plot=False):
     train_dates = data_dates[train_indices]
     test_dates = data_dates[test_indices]
 
+    additional_metrics = calculate_additional_metrics(predictions)
+
     result = {
         'predictions': predictions,
         'dates': (train_dates, test_dates),
@@ -70,14 +72,13 @@ def run_model(ticker, verbose=True, save_plot=False):
             'normalized_rmse': rmse_normalized,
             'original_rmse': rmse_original
         },
+        'additional_metrics': additional_metrics,
         'model': model
     }
 
     if verbose:
         plot_results(ticker, result, save=save_plot)
-
-        train_preds, test_preds, y_train, y_test = result['predictions']
-        plot_confusion_matrix(ticker, y_test, test_preds, save=save_plot)
+        print_metrics_report(ticker, additional_metrics)
 
     return result
 
@@ -120,4 +121,4 @@ if __name__ == '__main__':
     np.random.seed(RANDOM_SEED)
     tf.random.set_seed(RANDOM_SEED)
 
-    run_model(ticker=DEFAULT_TICKER, save_plot=True)
+    run_tests()

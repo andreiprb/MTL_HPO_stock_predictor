@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 
 from tuning import tune_hyperparameters, train_best_model
 from simple_training import run_model
-from utility import inverse_scale, plot_results, prepare_stock_data, plot_confusion_matrix, compute_direction_accuracy
+from utility import inverse_scale, plot_results, prepare_stock_data, calculate_additional_metrics, print_metrics_report
 from constants import RANDOM_SEED, LOOK_BACK, EPOCHS, TUNING_MAX_TRIALS, \
     TUNING_EXECUTIONS_PER_TRIAL, TEST_SIZE, BATCH_FRACTION, TRAIN_TICKERS_COUNT, START_DATE, END_DATE, TICKERS
 
@@ -240,18 +240,19 @@ def evaluate_on_test_tickers(model, test_tickers, verbose=True):
         train_dates = data_dates[train_indices]
         test_dates = data_dates[test_indices]
 
+        predictions = (train_preds_original, test_preds_original, y_train_original, y_test_original)
+        additional_metrics = calculate_additional_metrics(predictions, full=True)
+
         results[ticker] = {
-            'predictions': (train_preds_original, test_preds_original, y_train_original, y_test_original),
+            'predictions': predictions,
             'dates': (train_dates, test_dates),
-            'metrics': {'normalized_rmse': rmse_normalized, 'original_rmse': rmse_original}
+            'metrics': {'normalized_rmse': rmse_normalized, 'original_rmse': rmse_original},
+            'additional_metrics': additional_metrics  # Add the additional metrics
         }
 
         if verbose:
             plot_results(ticker, results[ticker], save=True, transfer_learning=True)
-
-            _, test_preds_original, _, y_test_original = results[ticker]['predictions']
-            direction_metrics = plot_confusion_matrix(ticker, y_test_original, test_preds_original,
-                                                      save=True, transfer_learning=True)
+            print_metrics_report(ticker, additional_metrics)  # Print the additional metrics
 
     return results
 
@@ -274,32 +275,14 @@ def compare_with_individual_models(test_tickers, test_results, verbose=True):
         individual_result = run_model(
             ticker=ticker,
             verbose=verbose,
-            save_plot=True
+            save_plot=True,
         )
 
         # FIX: Use test_results[ticker] instead of a non-existent transfer_result variable
         transfer_result = test_results[ticker]
 
-        _, transfer_test_preds, _, transfer_y_test = transfer_result['predictions']
-        transfer_direction_metrics = compute_direction_accuracy(transfer_y_test, transfer_test_preds)
-
-        _, individual_test_preds, _, individual_y_test = individual_result['predictions']
-        individual_direction_metrics = compute_direction_accuracy(individual_y_test, individual_test_preds)
-
         # Initialize the comparison dictionary for this ticker
         comparison[ticker] = {}
-
-        # Add F1 comparison to the comparison dictionary
-        comparison[ticker]['transfer_f1'] = transfer_direction_metrics['f1']
-        comparison[ticker]['individual_f1'] = individual_direction_metrics['f1']
-        comparison[ticker]['f1_improvement'] = (
-                (transfer_direction_metrics['f1'] - individual_direction_metrics['f1']) /
-                individual_direction_metrics['f1'] * 100) if individual_direction_metrics['f1'] > 0 else 0
-
-        if verbose:
-            print(f"F1 Score (Transfer Learning): {transfer_direction_metrics['f1']:.4f}")
-            print(f"F1 Score (Individual Model): {individual_direction_metrics['f1']:.4f}")
-            print(f"F1 Improvement: {comparison[ticker]['f1_improvement']:.2f}%")
 
         transfer_rmse = transfer_result['metrics']['original_rmse']
         individual_rmse = individual_result['metrics']['original_rmse']
@@ -316,7 +299,7 @@ def compare_with_individual_models(test_tickers, test_results, verbose=True):
             'improvement': improvement,
             'transfer_norm_rmse': transfer_norm_rmse,
             'individual_norm_rmse': individual_norm_rmse,
-            'norm_improvement': norm_improvement
+            'norm_improvement': norm_improvement,
         })
 
         if verbose:
@@ -341,15 +324,12 @@ def print_comparison_summary(comparison):
 
     avg_orig_improvement = sum(comp['improvement'] for comp in comparison.values()) / len(comparison)
     avg_norm_improvement = sum(comp['norm_improvement'] for comp in comparison.values()) / len(comparison)
-    avg_f1_improvement = sum(comp['f1_improvement'] for comp in comparison.values()) / len(comparison)
     better_count = sum(1 for comp in comparison.values() if comp['improvement'] > 0)
-    better_f1_count = sum(1 for comp in comparison.values() if comp['f1_improvement'] > 0)
 
     print(f"\nTransfer learning was better in {better_count}/{len(comparison)} cases")
     print(f"Average improvement (Normalized RMSE): {avg_norm_improvement:.2f}%")
     print(f"Average improvement (Original RMSE): {avg_orig_improvement:.2f}%")
-    print(f"Transfer learning had better F1 in {better_f1_count}/{len(comparison)} cases")
-    print(f"Average improvement (F1 Score): {avg_f1_improvement:.2f}%")
+
 
 
 def run_transfer_learning():
