@@ -6,7 +6,7 @@ import sys
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
-from logging import StdoutRedirector, setup_logging
+from logger import StdoutRedirector, setup_logging
 
 from tuning import tune_hyperparameters, train_best_model
 from simple_training import run_model
