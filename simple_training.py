@@ -8,22 +8,6 @@ from constants import RANDOM_SEED, LOOK_BACK, EPOCHS, TUNING_MAX_TRIALS, TUNING_
 
 
 def run_model(ticker, verbose=True, save_plot=False):
-    """
-    Run the complete model process for a given ticker.
-
-    The process includes:
-    1. Tuning hyperparameters
-    2. Training the best model with fixed look_back and epochs configurations
-
-    Args:
-        ticker (str): Stock ticker symbol.
-        verbose (bool, optional): Whether to print progress information. Defaults to True.
-        save_plot (bool, optional): Whether to save the plot to a file. Defaults to False.
-
-    Returns:
-        dict: Results of the best model configuration including predictions, metrics, and configuration details.
-    """
-
     if verbose:
         print(f"Tuning hyperparameters for {ticker}...")
 
@@ -84,15 +68,6 @@ def run_model(ticker, verbose=True, save_plot=False):
 
 
 def run_tests():
-    """
-    Run model for all tickers in the TICKERS list.
-
-    This function processes each ticker in the TICKERS list, trains a model for each,
-    and ranks the tickers based on the model's RMSE performance.
-
-    Returns:
-        dict: Dictionary mapping each ticker to its model results.
-    """
     results = {}
 
     results_dir = os.path.join(os.getcwd(), 'results')

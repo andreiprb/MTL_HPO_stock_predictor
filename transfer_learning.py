@@ -1,11 +1,12 @@
 import numpy as np
 import tensorflow as tf
 import random
-import os
 import sys
 
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
+
+from logging import StdoutRedirector, setup_logging
 
 from tuning import tune_hyperparameters, train_best_model
 from simple_training import run_model
@@ -14,43 +15,7 @@ from constants import RANDOM_SEED, LOOK_BACK, EPOCHS, TUNING_MAX_TRIALS, \
     TUNING_EXECUTIONS_PER_TRIAL, TEST_SIZE, BATCH_FRACTION, TRAIN_TICKERS_COUNT, START_DATE, END_DATE, TICKERS
 
 
-def setup_logging():
-    """Set up logging to a file in the results folder."""
-    results_dir = os.path.join(os.getcwd(), 'results')
-    os.makedirs(results_dir, exist_ok=True)
-    return os.path.join(results_dir, "_results.txt")
-
-
-class StdoutRedirector:
-    """Class to redirect stdout and filter out progress bars."""
-
-    def __init__(self, log_file):
-        self.terminal = sys.stdout
-        self.log = open(log_file, 'w')
-        self.is_progress_bar = False
-
-    def write(self, message):
-        self.terminal.write(message)
-        if '━' in message:
-            self.is_progress_bar = True
-            return
-        if self.is_progress_bar and ('/' in message or message.strip().isdigit()):
-            return
-        if self.is_progress_bar and message.strip() == '':
-            self.is_progress_bar = False
-        if not self.is_progress_bar:
-            self.log.write(message)
-
-    def flush(self):
-        self.terminal.flush()
-        self.log.flush()
-
-    def close(self):
-        self.log.close()
-
-
 def prepare_combined_data(tickers, start_date, end_date, look_back, verbose=True):
-    """Prepare combined dataset from multiple tickers using existing utilities."""
     if verbose:
         print(f"Downloading and preparing data for {len(tickers)} tickers...")
 
@@ -97,17 +62,12 @@ def prepare_combined_data(tickers, start_date, end_date, look_back, verbose=True
 
 
 def combine_datasets(data_list):
-    """Combine multiple datasets into a single large dataset."""
     X_combined = np.vstack([X for X, _ in data_list])
     y_combined = np.concatenate([y for _, y in data_list])
     return X_combined, y_combined
 
 
 def train_base_model(train_tickers, verbose=True):
-    """
-    Train a base model on data from multiple tickers, using a subset for hyperparameter tuning.
-    Reuses tuning logic from tuning.py.
-    """
     combined_data_info = prepare_combined_data(
         tickers=train_tickers,
         start_date=START_DATE,
@@ -175,9 +135,6 @@ def train_base_model(train_tickers, verbose=True):
 
 
 def evaluate_on_test_tickers(model, test_tickers, verbose=True):
-    """
-    Evaluate the trained model on test tickers not used during training.
-    """
     results = {}
 
     for ticker in test_tickers:
@@ -258,9 +215,6 @@ def evaluate_on_test_tickers(model, test_tickers, verbose=True):
 
 
 def compare_with_individual_models(test_tickers, test_results, verbose=True):
-    """
-    Compare transfer learning results with individual models.
-    """
     comparison = {}
 
     for ticker in test_tickers:
@@ -278,10 +232,8 @@ def compare_with_individual_models(test_tickers, test_results, verbose=True):
             save_plot=True,
         )
 
-        # FIX: Use test_results[ticker] instead of a non-existent transfer_result variable
         transfer_result = test_results[ticker]
 
-        # Initialize the comparison dictionary for this ticker
         comparison[ticker] = {}
 
         transfer_rmse = transfer_result['metrics']['original_rmse']
@@ -292,7 +244,6 @@ def compare_with_individual_models(test_tickers, test_results, verbose=True):
         individual_norm_rmse = individual_result['metrics']['normalized_rmse']
         norm_improvement = (individual_norm_rmse - transfer_norm_rmse) / individual_norm_rmse * 100
 
-        # Update the comparison dictionary with RMSE metrics
         comparison[ticker].update({
             'transfer_rmse': transfer_rmse,
             'individual_rmse': individual_rmse,
@@ -317,7 +268,6 @@ def compare_with_individual_models(test_tickers, test_results, verbose=True):
 
 
 def print_comparison_summary(comparison):
-    """Print summary statistics for the comparison results."""
     print("\n" + "=" * 50)
     print("COMPARISON SUMMARY")
     print("=" * 50)
@@ -333,9 +283,6 @@ def print_comparison_summary(comparison):
 
 
 def run_transfer_learning():
-    """
-    Run the complete transfer learning process.
-    """
     print(f"Starting transfer learning experiment with {len(TICKERS)} tickers")
     print(f"Using batch fraction: {BATCH_FRACTION}")
 
