@@ -55,7 +55,7 @@ def tune_hyperparameters(ticker=None, look_back=None, max_trials=None, execution
         max_trials=max_trials,
         executions_per_trial=executions_per_trial,
         directory='hyper_tuning',
-        project_name=f'{ticker or "_combined"}_lstm_tuning',
+        project_name=f'{ticker or "_combined"}_tuning',
     )
 
     tuner.search(

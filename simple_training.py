@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import os
 
-from tuning import tune_hyperparameters, train_best_model
+from hptuning import tune_hyperparameters, train_best_model
 from utility import plot_results, prepare_stock_data, calculate_additional_metrics, print_metrics_report
 from constants import RANDOM_SEED, LOOK_BACK, EPOCHS, TUNING_MAX_TRIALS, TUNING_EXECUTIONS_PER_TRIAL, TICKERS, DEFAULT_TICKER
 
@@ -28,6 +28,12 @@ def run_model(ticker, verbose=True, save_plot=False):
         epochs=EPOCHS,
         verbose=verbose
     )
+
+    parameters_dir = os.path.join(os.getcwd(), 'parameters')
+    os.makedirs(parameters_dir, exist_ok=True)
+
+    parameters_path = os.path.join(parameters_dir, f'{ticker}.weights.h5')
+    model.save_weights(parameters_path)
 
     X_train, y_train, X_test, y_test = data_info[0]
 

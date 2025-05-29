@@ -1,14 +1,14 @@
 import numpy as np
 import tensorflow as tf
 import random
-import sys
+import sys, os
 
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
 from logger import StdoutRedirector, setup_logging
 
-from tuning import tune_hyperparameters, train_best_model
+from hptuning import tune_hyperparameters, train_best_model
 from simple_training import run_model
 from utility import inverse_scale, plot_results, prepare_stock_data, calculate_additional_metrics, print_metrics_report
 from constants import RANDOM_SEED, LOOK_BACK, EPOCHS, TUNING_MAX_TRIALS, \
@@ -125,6 +125,11 @@ def train_base_model(train_tickers, verbose=True):
         verbose=verbose
     )
 
+    parameters_dir = os.path.join(os.getcwd(), 'parameters')
+    os.makedirs(parameters_dir, exist_ok=True)
+    parameters_path = os.path.join(parameters_dir, 'combined.weights.h5')
+    model.save_weights(parameters_path)
+
     combined_data_info['best_hyperparameters'] = tuner.get_best_hyperparameters(num_trials=1)[0].values
     combined_data_info['metrics'] = {
         'normalized_rmse': rmse_normalized,
@@ -208,7 +213,7 @@ def evaluate_on_test_tickers(model, test_tickers, verbose=True):
         }
 
         if verbose:
-            plot_results(ticker, results[ticker], save=True, transfer_learning=True)
+            plot_results(ticker, results[ticker], save=True, multitask_learning=True)
             print_metrics_report(ticker, additional_metrics)  # Print the additional metrics
 
     return results
@@ -232,30 +237,30 @@ def compare_with_individual_models(test_tickers, test_results, verbose=True):
             save_plot=True,
         )
 
-        transfer_result = test_results[ticker]
+        multitask_result = test_results[ticker]
 
         comparison[ticker] = {}
 
-        transfer_rmse = transfer_result['metrics']['original_rmse']
+        multitask_rmse = multitask_result['metrics']['original_rmse']
         individual_rmse = individual_result['metrics']['original_rmse']
-        improvement = (individual_rmse - transfer_rmse) / individual_rmse * 100
+        improvement = (individual_rmse - multitask_rmse) / individual_rmse * 100
 
-        transfer_norm_rmse = transfer_result['metrics']['normalized_rmse']
+        multitask_norm_rmse = multitask_result['metrics']['normalized_rmse']
         individual_norm_rmse = individual_result['metrics']['normalized_rmse']
-        norm_improvement = (individual_norm_rmse - transfer_norm_rmse) / individual_norm_rmse * 100
+        norm_improvement = (individual_norm_rmse - multitask_norm_rmse) / individual_norm_rmse * 100
 
         comparison[ticker].update({
-            'transfer_rmse': transfer_rmse,
+            'multitask_rmse': multitask_rmse,
             'individual_rmse': individual_rmse,
             'improvement': improvement,
-            'transfer_norm_rmse': transfer_norm_rmse,
+            'multitask_norm_rmse': multitask_norm_rmse,
             'individual_norm_rmse': individual_norm_rmse,
             'norm_improvement': norm_improvement,
         })
 
         if verbose:
             print(f"\nComparison for {ticker}:")
-            print(f"Transfer Learning: Normalized RMSE: {transfer_norm_rmse:.4f}, Original RMSE: {transfer_rmse:.4f}")
+            print(f"multitask Learning: Normalized RMSE: {multitask_norm_rmse:.4f}, Original RMSE: {multitask_rmse:.4f}")
             print(
                 f"Individual Model: Normalized RMSE: {individual_norm_rmse:.4f}, Original RMSE: {individual_rmse:.4f}")
             print(f"Improvement (Normalized): {norm_improvement:.2f}%")
@@ -276,14 +281,14 @@ def print_comparison_summary(comparison):
     avg_norm_improvement = sum(comp['norm_improvement'] for comp in comparison.values()) / len(comparison)
     better_count = sum(1 for comp in comparison.values() if comp['improvement'] > 0)
 
-    print(f"\nTransfer learning was better in {better_count}/{len(comparison)} cases")
+    print(f"\nMulti Task learning was better in {better_count}/{len(comparison)} cases")
     print(f"Average improvement (Normalized RMSE): {avg_norm_improvement:.2f}%")
     print(f"Average improvement (Original RMSE): {avg_orig_improvement:.2f}%")
 
 
 
-def run_transfer_learning():
-    print(f"Starting transfer learning experiment with {len(TICKERS)} tickers")
+def run_multitask_learning():
+    print(f"Starting Multi Task learning experiment with {len(TICKERS)} tickers")
     print(f"Using batch fraction: {BATCH_FRACTION}")
 
     random.seed(RANDOM_SEED)
@@ -324,7 +329,7 @@ if __name__ == '__main__':
     sys.stdout = StdoutRedirector(log_file)
 
     try:
-        base_model, train_tickers, test_tickers, test_results = run_transfer_learning()
+        base_model, train_tickers, test_tickers, test_results = run_multitask_learning()
         compare_with_individual_models(test_tickers, test_results)
     finally:
         if isinstance(sys.stdout, StdoutRedirector):

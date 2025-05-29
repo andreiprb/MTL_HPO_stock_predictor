@@ -71,7 +71,7 @@ def prepare_stock_data(ticker, start_date, end_date, look_back, test_ratio=0.05,
     }
 
 
-def plot_results(ticker, results, save=False, transfer_learning=False):
+def plot_results(ticker, results, save=False, multitask_learning=False):
     train_preds_original, test_preds_original, y_train_original, y_test_original = results['predictions']
     train_dates, test_dates = results['dates']
     metrics = results['metrics']
@@ -89,8 +89,8 @@ def plot_results(ticker, results, save=False, transfer_learning=False):
 
     plt.figure(figsize=(16, 8))
 
-    if transfer_learning:
-        title = f'Transfer Learning LSTM Model - {ticker}\nNormalized RMSE: {metrics["normalized_rmse"]:.4f}, Original RMSE: {metrics["original_rmse"]:.4f}'
+    if multitask_learning:
+        title = f'Multi Task Learning LSTM Model - {ticker}\nNormalized RMSE: {metrics["normalized_rmse"]:.4f}, Original RMSE: {metrics["original_rmse"]:.4f}'
     else:
         title = f'LSTM Model - {ticker}\nNormalized RMSE: {metrics["normalized_rmse"]:.4f}, Original RMSE: {metrics["original_rmse"]:.4f}'
 
@@ -117,7 +117,7 @@ def plot_results(ticker, results, save=False, transfer_learning=False):
     train_preds_flat = train_preds_np.flatten() if hasattr(train_preds_np, 'flatten') else train_preds_np
     test_preds_flat = test_preds_np.flatten() if hasattr(test_preds_np, 'flatten') else test_preds_np
 
-    if transfer_learning:
+    if multitask_learning:
         all_pred_dates = train_dates_list + test_dates_list
         all_pred_values = list(train_preds_flat) + list(test_preds_flat)
         plt.plot(all_pred_dates, all_pred_values, color='skyblue', label='Predicted Data')
@@ -132,7 +132,7 @@ def plot_results(ticker, results, save=False, transfer_learning=False):
         results_dir = os.path.join(os.getcwd(), 'results')
         os.makedirs(results_dir, exist_ok=True)
 
-        filename = f"{ticker}_transfer_learning.png" if transfer_learning else f"{ticker}_simple_training.png"
+        filename = f"{ticker}_multitask_learning.png" if multitask_learning else f"{ticker}_simple_training.png"
         plt.savefig(os.path.join(results_dir, filename))
 
     plt.show()
