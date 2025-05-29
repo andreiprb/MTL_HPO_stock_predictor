@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import yfinance as yf
 
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error
 
 
 def min_max_scale(data):

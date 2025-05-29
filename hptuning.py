@@ -5,6 +5,8 @@ from keras.api.optimizers import Adam
 import keras_tuner as kt
 import tensorflow as tf
 
+import os
+
 from utility import inverse_scale, prepare_stock_data
 from constants import TEST_SIZE, BATCH_FRACTION
 
@@ -69,7 +71,7 @@ def tune_hyperparameters(ticker=None, look_back=None, max_trials=None, execution
     return tuner, data_info
 
 
-def train_best_model(tuner, data_splits, scaling_info, look_back, epochs, verbose=True):
+def train_best_model(tuner, data_splits, scaling_info, look_back, epochs, verbose=True, ticker=None):
     X_train, y_train, X_test, y_test = data_splits
     min_val, max_val = scaling_info
 
@@ -77,20 +79,34 @@ def train_best_model(tuner, data_splits, scaling_info, look_back, epochs, verbos
 
     model = build_lstm_model(best_hp, input_shape=(look_back, 1))
 
-    batch_size = int(len(X_train) * BATCH_FRACTION)
-    batch_size = max(1, batch_size)
+    parameters_dir = os.path.join(os.getcwd(), 'parameters')
+    if ticker:
+        weights_path = os.path.join(parameters_dir, f'{ticker}.weights.h5')
+    else:
+        weights_path = os.path.join(parameters_dir, 'combined.weights.h5')
 
-    if verbose:
-        print("Best Hyperparameters:", best_hp.values)
-        print(f"Using batch size of {batch_size} (fraction: {BATCH_FRACTION})")
+    if os.path.exists(weights_path):
+        if verbose:
+            print(f"Loading existing weights from {weights_path}")
+        model.load_weights(weights_path)
+    else:
+        if verbose:
+            print("No existing weights found. Training model...")
 
-    model.fit(
-        X_train, y_train,
-        batch_size=batch_size,
-        epochs=epochs,
-        validation_split=TEST_SIZE,
-        verbose=verbose
-    )
+        batch_size = int(len(X_train) * BATCH_FRACTION)
+        batch_size = max(1, batch_size)
+
+        if verbose:
+            print("Best Hyperparameters:", best_hp.values)
+            print(f"Using batch size of {batch_size} (fraction: {BATCH_FRACTION})")
+
+        model.fit(
+            X_train, y_train,
+            batch_size=batch_size,
+            epochs=epochs,
+            validation_split=TEST_SIZE,
+            verbose=verbose
+        )
 
     train_preds = model.predict(X_train, verbose=verbose)
     test_preds = model.predict(X_test, verbose=verbose)

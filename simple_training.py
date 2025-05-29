@@ -26,7 +26,8 @@ def run_model(ticker, verbose=True, save_plot=False):
         scaling_info=data_info[1],
         look_back=LOOK_BACK,
         epochs=EPOCHS,
-        verbose=verbose
+        verbose=verbose,
+        ticker=ticker
     )
 
     parameters_dir = os.path.join(os.getcwd(), 'parameters')
